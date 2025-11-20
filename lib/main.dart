@@ -15,6 +15,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  TextEditingController textEditingController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -22,7 +23,21 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(textTheme: AppTextThemes.textTheme16),
 
       home: Scaffold(
-        appBar: AppBar(title: Text('Weather App'), centerTitle: true),
+        appBar: AppBar(
+          backgroundColor: const Color.fromARGB(255, 47, 33, 243),
+          title: Text('Weather App', style: TextStyle(color: Colors.white)),
+          elevation: 0,
+          centerTitle: true,
+          actions: <Widget>[
+            PopupMenuButton<String>(
+              itemBuilder: (context) {
+                return {'Setting','Profile', 'Logout', 'Login'}.map((e) {
+                  return PopupMenuItem(value: e, child: Text(e));
+                }).toList();
+              },
+            ),
+          ],
+        ),
 
         body: Container(
           decoration: BoxDecoration(
@@ -32,11 +47,30 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10,sigmaY: 10),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Center(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          ElevatedButton(onPressed: () {}, child: Text('find')),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: textEditingController,
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: 'Enter city name',
+                                hintStyle: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.only(top: 50.0),
                       child: Text(
@@ -138,6 +172,7 @@ class _MyAppState extends State<MyApp> {
                                 height: 50,
                                 width: 70,
                                 child: Card(
+                                  elevation: 0,
                                   color: Colors.transparent,
                                   child: Column(
                                     children: [
@@ -158,7 +193,7 @@ class _MyAppState extends State<MyApp> {
                                             .textTheme
                                             .titleMedium!
                                             .copyWith(
-                                              color: Colors.grey,
+                                              color: Colors.white,
                                               fontSize: 14,
                                             ),
                                       ),
