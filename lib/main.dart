@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 void main() {
@@ -63,7 +65,7 @@ class _MyAppState extends State<MyApp> {
                       SizedBox(height: 10),
                       Text(
                         '16°',
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ],
                   ),
@@ -80,11 +82,67 @@ class _MyAppState extends State<MyApp> {
                       SizedBox(height: 10),
                       Text(
                         '10°',
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ],
                   ),
                 ],
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10.0),
+                child: Container(
+                  color: Colors.grey,
+                  height: 1,
+                  width: double.infinity,
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                height: 100,
+                child: Center(
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.trackpad,
+                      },
+                    ),
+                    child: ListView.builder(
+                      itemCount: 10,
+                      shrinkWrap: true,
+                      scrollDirection: Axis.horizontal,
+                      itemBuilder: (context, index) {
+                        return Container(
+                          height: 50,
+                          width: 70,
+                          child: Card(
+                            color: Colors.transparent,
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Fri, 8pm',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                Icon(Icons.cloud, color: Colors.white),
+                                Text(
+                                  '14°',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
