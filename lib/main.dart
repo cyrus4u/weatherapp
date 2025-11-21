@@ -1,6 +1,9 @@
 import 'dart:ui';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:weatherapp/model/city_name_model.dart';
+import 'package:weatherapp/model/current_city_data_model.dart';
 import 'package:weatherapp/theme/text_theme.dart';
 
 void main() {
@@ -16,6 +19,30 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   TextEditingController textEditingController = TextEditingController();
+  late Future<CityNameModel> cityNamesendRequest;
+
+  var apikey = 'd7d97df61b04b338395566181c25c0f7';
+
+  var cityName = 'tehran';
+  late double lat;
+  late double lon;
+
+  @override
+  void initState() {
+    super.initState();
+    cityNamesendRequest = sendRequestCityName(cityName);
+    cityNamesendRequest.then((city) {
+      lat = city.lat;
+      lon = city.lon;
+
+      // Fetch current weather
+      sendRequestCurrentWeather(lat, lon);
+
+      // ✅ ALSO fetch forecast data once at startup
+      // sendRequest7DaysForecast(lat, lon);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -31,7 +58,7 @@ class _MyAppState extends State<MyApp> {
           actions: <Widget>[
             PopupMenuButton<String>(
               itemBuilder: (context) {
-                return {'Setting','Profile', 'Logout', 'Login'}.map((e) {
+                return {'Setting', 'Profile', 'Logout', 'Login'}.map((e) {
                   return PopupMenuItem(value: e, child: Text(e));
                 }).toList();
               },
@@ -312,5 +339,52 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
     );
+  }
+
+  Future<CityNameModel> sendRequestCityName(String cityName) async {
+    try {
+      var response = await Dio().get(
+        'http://api.openweathermap.org/geo/1.0/direct',
+        queryParameters: {'q': cityName, 'appid': apikey, 'limit': 1},
+      );
+      if (response.data.isEmpty) {
+        throw Exception('City not found');
+      }
+      var dataModel = CityNameModel.fromJson(response.data[0]);
+      print('City: $cityName => Lat: ${dataModel.lat}, Lon: ${dataModel.lon}');
+      return dataModel;
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('City not found')));
+      throw Exception('City not found');
+    }
+  }
+
+  Future<CurrentCityDataModel> sendRequestCurrentWeather(
+    double lat,
+    double lon,
+  ) async {
+    try {
+      var response = await Dio().get(
+        'https://api.openweathermap.org/data/2.5/weather',
+        queryParameters: {
+          'lat': lat,
+          'lon': lon,
+          'appid': apikey,
+          'units': 'metric',
+          'lang': 'en',
+        },
+      );
+      print('Weather Data: ${response.data}');
+      var dataModel = CurrentCityDataModel.fromJson(response.data);
+      // streamCurrentWeather.add(dataModel);
+      return dataModel;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching current forecast: $e')),
+      );
+      throw Exception('City not found');
+    }
   }
 }
