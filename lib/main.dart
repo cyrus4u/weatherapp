@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:progress_indicators/progress_indicators.dart';
+import 'package:weatherapp/extension/unix_time_intl.dart';
 import 'package:weatherapp/model/city_name_model.dart';
 import 'package:weatherapp/model/current_city_data_model.dart';
 import 'package:weatherapp/theme/text_theme.dart';
@@ -20,8 +21,9 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   TextEditingController textEditingController = TextEditingController();
-  late Future<CityNameModel> cityNamesendRequest;
-  late Future<CurrentCityDataModel> currentWeatherFuture;
+  late Future<CurrentCityDataModel> weatherFuture;
+
+ 
   // late StreamController<List<ForecastDaysModel>> streamForecastDays;
   // late StreamController<CurrentCityDataModel> streamCurrentWeather;
 
@@ -30,24 +32,13 @@ class _MyAppState extends State<MyApp> {
   var cityName = 'tehran';
   late double lat;
   late double lon;
-
   @override
   void initState() {
     super.initState();
-    cityNamesendRequest = sendRequestCityName(cityName);
-    cityNamesendRequest.then((city) {
-      lat = city.lat;
-      lon = city.lon;
-
-      // Fetch current weather
-      setState(() {
-        currentWeatherFuture = sendRequestCurrentWeather(lat, lon);
-      });
-
-      // ✅ ALSO fetch forecast data once at startup
-      // sendRequest7DaysForecast(lat, lon);
-    });
+    weatherFuture = loadWeather(cityName);
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +64,10 @@ class _MyAppState extends State<MyApp> {
         ),
 
         body: FutureBuilder<CurrentCityDataModel>(
-          future: currentWeatherFuture,
+          future: weatherFuture,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
+              CurrentCityDataModel? cityDataModel = snapshot.data;
               return Container(
                 decoration: BoxDecoration(
                   image: DecorationImage(
@@ -99,10 +91,15 @@ class _MyAppState extends State<MyApp> {
                                 ),
                                 SizedBox(width: 10),
                                 Expanded(
-                                  child: TextField(
+                                  child: TextField(                
                                     controller: textEditingController,
                                     decoration: InputDecoration(
-                                      border: InputBorder.none,
+                                      filled: true,
+                                      fillColor: Colors.white.withAlpha(70),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
                                       hintText: 'Enter city name',
                                       hintStyle: TextStyle(color: Colors.white),
                                     ),
@@ -114,7 +111,7 @@ class _MyAppState extends State<MyApp> {
                           Padding(
                             padding: const EdgeInsets.only(top: 50.0),
                             child: Text(
-                              'Mountain View',
+                              cityDataModel!.cityname,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 35,
@@ -124,7 +121,7 @@ class _MyAppState extends State<MyApp> {
                           Padding(
                             padding: const EdgeInsets.only(top: 20.0),
                             child: Text(
-                              'Clear Sky',
+                              cityDataModel.description,
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 20,
@@ -142,7 +139,7 @@ class _MyAppState extends State<MyApp> {
                           Padding(
                             padding: EdgeInsets.only(top: 20),
                             child: Text(
-                              '14°',
+                              '${cityDataModel.temp.round()}°',
                               style: TextStyle(
                                 fontSize: 60,
                                 color: Colors.white,
@@ -163,7 +160,7 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '16°',
+                                    '${cityDataModel.temp_max.round()}°',
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
@@ -192,7 +189,7 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '10°',
+                                    '${cityDataModel.temp_min.round()}°',
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
@@ -291,7 +288,7 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '73 m/s',
+                                    '${cityDataModel.wind_speed} m/s',
 
                                     style: Theme.of(context)
                                         .textTheme
@@ -324,7 +321,9 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '6:20 AM',
+                                    cityDataModel.sunrise.toFormattedTime(
+                                      cityDataModel.timezone,
+                                    ),
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
@@ -356,7 +355,9 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '6:30 PM',
+                                    cityDataModel.sunset.toFormattedTime(
+                                      cityDataModel.timezone,
+                                    ),
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
@@ -388,7 +389,7 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '73%',
+                                    '${cityDataModel.humidity} %',
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
@@ -420,6 +421,11 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
     );
+  }
+
+  Future<CurrentCityDataModel> loadWeather(String cityName) async {
+    var city = await sendRequestCityName(cityName);
+    return await sendRequestCurrentWeather(city.lat, city.lon);
   }
 
   Future<CityNameModel> sendRequestCityName(String cityName) async {
