@@ -23,13 +23,12 @@ class _MyAppState extends State<MyApp> {
   TextEditingController textEditingController = TextEditingController();
   late Future<CurrentCityDataModel> weatherFuture;
 
- 
   // late StreamController<List<ForecastDaysModel>> streamForecastDays;
   // late StreamController<CurrentCityDataModel> streamCurrentWeather;
 
   var apikey = 'd7d97df61b04b338395566181c25c0f7';
 
-  var cityName = 'tehran';
+  var cityName = 'NEW YORK';
   late double lat;
   late double lon;
   @override
@@ -37,8 +36,6 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     weatherFuture = loadWeather(cityName);
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +88,7 @@ class _MyAppState extends State<MyApp> {
                                 ),
                                 SizedBox(width: 10),
                                 Expanded(
-                                  child: TextField(                
+                                  child: TextField(
                                     controller: textEditingController,
                                     decoration: InputDecoration(
                                       filled: true,
@@ -130,11 +127,7 @@ class _MyAppState extends State<MyApp> {
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 20.0),
-                            child: Icon(
-                              Icons.wb_sunny_outlined,
-                              size: 80,
-                              color: Colors.white,
-                            ),
+                            child: setIconForMain(cityDataModel)
                           ),
                           Padding(
                             padding: EdgeInsets.only(top: 20),
@@ -421,6 +414,31 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
     );
+  }
+
+  Image setIconForMain(model) {
+    String description = model.description;
+    if (description.contains('few clouds') ||
+        (description.contains('partly sunny'))) {
+      return Image.asset('images/partly-cloudy.png');
+    } else if (description.contains('cloudy')) {
+      return Image.asset('images/cloud.png');
+    } else if (description.contains('fog')) {
+      return Image.asset('images/fog.png');
+    } else if (description.contains('thunderstorm')) {
+      return Image.asset('images/thunderstorm.png');
+    } else if (description.contains('light rain')) {
+      return Image.asset('images/light_rain.png');
+    } else if (description.contains('rain')) {
+      return Image.asset('images/rain.png');
+    } else if (description.contains('sunny') ||
+        description.contains('clear sky')) {
+      return Image.asset('images/sunny.png');
+    } else if (description.contains('snow')) {
+      return Image.asset('images/snow.png');
+    } else {
+      return Image.asset('images/windy.png');
+    }
   }
 
   Future<CurrentCityDataModel> loadWeather(String cityName) async {
