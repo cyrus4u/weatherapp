@@ -73,8 +73,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -127,33 +125,44 @@ class _WeatherScreenState extends State<WeatherScreen> {
                             child: Row(
                               children: [
                                 ElevatedButton(
-                                  onPressed: () {
-                                    sendRequestCityName(searchController.text)
-                                        .then((city) {
-                                          setState(() {
-                                             loadWeather(searchController.text);
+                                  onPressed: () async {
+                                    // ✅ Capture the messenger before any await
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
+                                    );
 
-                                            _streamForecast5Days3Hours.close();
-                                            _streamForecast5Days3Hours =
-                                                StreamController<
-                                                  List<ForecastDaysModel>
-                                                >();
+                                    try {
+                                      final city = await sendRequestCityName(
+                                        searchController.text,
+                                      );
+                                      if (!mounted) return;
 
-                                            sendRequest5Days3HoursForecast(
-                                              city.lat,
-                                              city.lon,
-                                            );
-                                          });
-                                        })
-                                        .catchError((error) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text('NOT EXIST'),
-                                            ),
-                                          );
-                                        });
+                                      // Reload weather safely
+                                      await loadWeather(searchController.text);
+
+                                      // Reset forecast stream controller (inside setState)
+                                      setState(() {
+                                        _streamForecast5Days3Hours.close();
+                                        _streamForecast5Days3Hours =
+                                            StreamController<
+                                              List<ForecastDaysModel>
+                                            >();
+                                      });
+
+                                      // Request 5-day forecast
+                                      await sendRequest5Days3HoursForecast(
+                                        city.lat,
+                                        city.lon,
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      // ✅ Use the pre-captured messenger (no more warning)
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text('NOT EXIST'),
+                                        ),
+                                      );
+                                    }
                                   },
 
                                   child: Text('find'),
@@ -472,8 +481,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
     );
   }
 
-  Container listViewItems(ForecastDaysModel forecastday) {
-    return Container(
+  Widget listViewItems(ForecastDaysModel forecastday) {
+    return SizedBox(
       height: 50,
       width: 70,
       child: Card(
@@ -527,53 +536,37 @@ class _WeatherScreenState extends State<WeatherScreen> {
     }
   }
 
- 
-
   Future<CityNameModel> sendRequestCityName(String cityName) async {
-    try {
-      var response = await Dio().get(
-        'http://api.openweathermap.org/geo/1.0/direct',
-        queryParameters: {'q': cityName, 'appid': apikey, 'limit': 1},
-      );
-      if (response.data.isEmpty) {
-        throw Exception('City not found');
-      }
-      var dataModel = CityNameModel.fromJson(response.data[0]);
-      print('City: $cityName => Lat: ${dataModel.lat}, Lon: ${dataModel.lon}');
-      return dataModel;
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('City not found')));
+    var response = await Dio().get(
+      'http://api.openweathermap.org/geo/1.0/direct',
+      queryParameters: {'q': cityName, 'appid': apikey, 'limit': 1},
+    );
+
+    if (response.data.isEmpty) {
       throw Exception('City not found');
     }
+
+    return CityNameModel.fromJson(response.data[0]);
   }
 
   Future<CurrentCityDataModel> sendRequestCurrentWeather(
     double lat,
     double lon,
   ) async {
-    try {
-      var response = await Dio().get(
-        'https://api.openweathermap.org/data/2.5/weather',
-        queryParameters: {
-          'lat': lat,
-          'lon': lon,
-          'appid': apikey,
-          'units': 'metric',
-          'lang': 'en',
-        },
-      );
-      print('Weather Data: ${response.data}');
-      var dataModel = CurrentCityDataModel.fromJson(response.data);
-      _streamCurrentWeather.add(dataModel);
-      return dataModel;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching current forecast: $e')),
-      );
-      throw Exception('City not found');
-    }
+    var response = await Dio().get(
+      'https://api.openweathermap.org/data/2.5/weather',
+      queryParameters: {
+        'lat': lat,
+        'lon': lon,
+        'appid': apikey,
+        'units': 'metric',
+        'lang': 'en',
+      },
+    );
+
+    final model = CurrentCityDataModel.fromJson(response.data);
+    _streamCurrentWeather.add(model);
+    return model;
   }
 
   // Call 5 day / 3 hour forecast data
@@ -581,38 +574,27 @@ class _WeatherScreenState extends State<WeatherScreen> {
     double lat,
     double lon,
   ) async {
-    try {
-      final response = await Dio().get(
-        'https://api.openweathermap.org/data/2.5/forecast',
-        queryParameters: {
-          'lat': lat,
-          'lon': lon,
-          'appid': apikey,
-          'units': 'metric',
-          'lang': 'en',
-          'cnt': 6, // optional, limits number of data points
-        },
-      );
+    final response = await Dio().get(
+      'https://api.openweathermap.org/data/2.5/forecast',
+      queryParameters: {
+        'lat': lat,
+        'lon': lon,
+        'appid': apikey,
+        'units': 'metric',
+        'lang': 'en',
+      },
+    );
 
-      final cityTimezone = response.data['city']['timezone'] as int;
+    final cityTimezone = response.data['city']['timezone'];
 
-      final List<ForecastDaysModel> forecastDays = [];
+    final List<ForecastDaysModel> forecastDays = [];
 
-      for (var item in response.data['list']) {
-        final model = ForecastDaysModel.fromJson(item);
-        model.timezoneOffset = cityTimezone;
-        forecastDays.add(model);
-      }
-
-      // ✅ Return the list (do not stream here — handled by loadWeather)
-      return forecastDays;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching 3-hour forecast: $e')),
-        );
-      }
-      throw Exception('Error fetching forecast');
+    for (var item in response.data['list']) {
+      final model = ForecastDaysModel.fromJson(item);
+      model.timezoneOffset = cityTimezone;
+      forecastDays.add(model);
     }
+
+    return forecastDays;
   }
 }
