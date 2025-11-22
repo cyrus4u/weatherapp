@@ -11,34 +11,69 @@ import 'package:weatherapp/model/forcast_day_model.dart';
 import 'package:weatherapp/theme/text_theme.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(WeatherScreen());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class WeatherScreen extends StatefulWidget {
+  const WeatherScreen({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<WeatherScreen> createState() => _WeatherScreenState();
 }
 
-class _MyAppState extends State<MyApp> {
-  TextEditingController textEditingController = TextEditingController();
-  late Future<CurrentCityDataModel> weatherFuture;
+class _WeatherScreenState extends State<WeatherScreen> {
+  final TextEditingController searchController = TextEditingController();
 
-  late StreamController<List<ForecastDaysModel>> streamForecastDays;
-  // late StreamController<CurrentCityDataModel> streamCurrentWeather;
-
+  // Streams
+  final StreamController<CurrentCityDataModel> _streamCurrentWeather =
+      StreamController.broadcast();
+  StreamController<List<ForecastDaysModel>> _streamForecast5Days3Hours =
+      StreamController.broadcast();
   var apikey = 'd7d97df61b04b338395566181c25c0f7';
 
-  var cityName = 'NEW YORK';
+  var cityName = 'tehran';
   late double lat;
   late double lon;
+
   @override
   void initState() {
     super.initState();
-    weatherFuture = loadWeather(cityName);
-    streamForecastDays = StreamController<List<ForecastDaysModel>>();
+    loadWeather("tehran");
   }
+
+  @override
+  void dispose() {
+    _streamCurrentWeather.close();
+    _streamForecast5Days3Hours.close();
+    super.dispose();
+  }
+
+  Future<void> loadWeather(String cityName) async {
+    try {
+      // 1. Fetch city coordinates
+      final CityNameModel city = await sendRequestCityName(cityName);
+
+      // 2. Fetch current weather
+      final CurrentCityDataModel current = await sendRequestCurrentWeather(
+        city.lat,
+        city.lon,
+      );
+      _streamCurrentWeather.add(current);
+
+      // 3. Fetch 5 day / 3 hour forecast data
+      final List<ForecastDaysModel> forecast =
+          await sendRequest5Days3HoursForecast(city.lat, city.lon);
+      _streamForecast5Days3Hours.add(forecast);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('City not found or network error')),
+        );
+      }
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -63,11 +98,17 @@ class _MyAppState extends State<MyApp> {
           ],
         ),
 
-        body: FutureBuilder<CurrentCityDataModel>(
-          future: weatherFuture,
+        body: StreamBuilder<CurrentCityDataModel>(
+          stream: _streamCurrentWeather.stream,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               CurrentCityDataModel? cityDataModel = snapshot.data;
+              // 🟢 Call 5 day / 3 hour forecast data
+              sendRequest5Days3HoursForecast(
+                cityDataModel!.lat,
+                cityDataModel.lon,
+              );
+
               return Container(
                 decoration: BoxDecoration(
                   image: DecorationImage(
@@ -86,13 +127,41 @@ class _MyAppState extends State<MyApp> {
                             child: Row(
                               children: [
                                 ElevatedButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    sendRequestCityName(searchController.text)
+                                        .then((city) {
+                                          setState(() {
+                                             loadWeather(searchController.text);
+
+                                            _streamForecast5Days3Hours.close();
+                                            _streamForecast5Days3Hours =
+                                                StreamController<
+                                                  List<ForecastDaysModel>
+                                                >();
+
+                                            sendRequest5Days3HoursForecast(
+                                              city.lat,
+                                              city.lon,
+                                            );
+                                          });
+                                        })
+                                        .catchError((error) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('NOT EXIST'),
+                                            ),
+                                          );
+                                        });
+                                  },
+
                                   child: Text('find'),
                                 ),
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: TextField(
-                                    controller: textEditingController,
+                                    controller: searchController,
                                     decoration: InputDecoration(
                                       filled: true,
                                       fillColor: Colors.white.withAlpha(70),
@@ -111,7 +180,7 @@ class _MyAppState extends State<MyApp> {
                           Padding(
                             padding: const EdgeInsets.only(top: 50.0),
                             child: Text(
-                              cityDataModel!.cityname,
+                              cityDataModel.cityname,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 35,
@@ -123,7 +192,7 @@ class _MyAppState extends State<MyApp> {
                             child: Text(
                               cityDataModel.description,
                               style: TextStyle(
-                                color: Colors.grey,
+                                color: Colors.white,
                                 fontSize: 20,
                               ),
                             ),
@@ -152,7 +221,7 @@ class _MyAppState extends State<MyApp> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
-                                        .copyWith(color: Colors.grey),
+                                        .copyWith(color: Colors.white),
                                   ),
                                   SizedBox(height: 10),
                                   Text(
@@ -181,7 +250,7 @@ class _MyAppState extends State<MyApp> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
-                                        .copyWith(color: Colors.grey),
+                                        .copyWith(color: Colors.white),
                                   ),
                                   SizedBox(height: 10),
                                   Text(
@@ -203,7 +272,7 @@ class _MyAppState extends State<MyApp> {
                               width: double.infinity,
                             ),
                           ),
-                          Container(
+                          SizedBox(
                             width: double.infinity,
                             height: 80,
                             child: Center(
@@ -216,47 +285,31 @@ class _MyAppState extends State<MyApp> {
                                         PointerDeviceKind.trackpad,
                                       },
                                     ),
-                                child: ListView.builder(
-                                  itemCount: 6,
-                                  shrinkWrap: true,
-                                  scrollDirection: Axis.horizontal,
-                                  itemBuilder: (context, index) {
-                                    return Container(
-                                      height: 50,
-                                      width: 70,
-                                      child: Card(
-                                        elevation: 0,
-                                        color: Colors.transparent,
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              'Fri, 8pm',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium!
-                                                  .copyWith(
-                                                    color: Colors.grey,
-                                                    fontSize: 14,
-                                                  ),
-                                            ),
-                                            Icon(
-                                              Icons.cloud,
-                                              color: Colors.white,
-                                            ),
-                                            Text(
-                                              '14°',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium!
-                                                  .copyWith(
-                                                    color: Colors.white,
-                                                    fontSize: 14,
-                                                  ),
-                                            ),
-                                          ],
+                                child: StreamBuilder<List<ForecastDaysModel>>(
+                                  stream: _streamForecast5Days3Hours.stream,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData) {
+                                      List<ForecastDaysModel>? forcastDays =
+                                          snapshot.data;
+                                      return ListView.builder(
+                                        itemCount: 6,
+                                        shrinkWrap: true,
+                                        scrollDirection: Axis.horizontal,
+                                        itemBuilder: (context, index) {
+                                          return listViewItems(
+                                            forcastDays![index],
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      return Center(
+                                        child: JumpingDotsProgressIndicator(
+                                          color: Colors.white,
+                                          fontSize: 60,
+                                          dotSpacing: 2,
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    }
                                   },
                                 ),
                               ),
@@ -280,7 +333,7 @@ class _MyAppState extends State<MyApp> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
-                                        .copyWith(color: Colors.grey),
+                                        .copyWith(color: Colors.white),
                                   ),
                                   SizedBox(height: 10),
                                   Text(
@@ -313,7 +366,7 @@ class _MyAppState extends State<MyApp> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
-                                        .copyWith(color: Colors.grey),
+                                        .copyWith(color: Colors.white),
                                   ),
                                   SizedBox(height: 10),
                                   Text(
@@ -347,7 +400,7 @@ class _MyAppState extends State<MyApp> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
-                                        .copyWith(color: Colors.grey),
+                                        .copyWith(color: Colors.white),
                                   ),
                                   SizedBox(height: 10),
                                   Text(
@@ -381,7 +434,7 @@ class _MyAppState extends State<MyApp> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium!
-                                        .copyWith(color: Colors.grey),
+                                        .copyWith(color: Colors.white),
                                   ),
                                   SizedBox(height: 10),
                                   Text(
@@ -419,6 +472,36 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  Container listViewItems(ForecastDaysModel forecastday) {
+    return Container(
+      height: 50,
+      width: 70,
+      child: Card(
+        elevation: 0,
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            Text(
+              forecastday.data_time.toFormattedTime(forecastday.timezoneOffset),
+              style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+            Expanded(child: setIconForMain(forecastday)),
+            Text(
+              '${forecastday.temp.round()}',
+              style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Image setIconForMain(model) {
     String description = model.description;
     if (description.contains('few clouds') ||
@@ -444,10 +527,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<CurrentCityDataModel> loadWeather(String cityName) async {
-    var city = await sendRequestCityName(cityName);
-    return await sendRequestCurrentWeather(city.lat, city.lon);
-  }
+ 
 
   Future<CityNameModel> sendRequestCityName(String cityName) async {
     try {
@@ -486,7 +566,7 @@ class _MyAppState extends State<MyApp> {
       );
       print('Weather Data: ${response.data}');
       var dataModel = CurrentCityDataModel.fromJson(response.data);
-      // streamCurrentWeather.add(dataModel);
+      _streamCurrentWeather.add(dataModel);
       return dataModel;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -496,9 +576,13 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void sendRequest7DaysForecast(double lat, double lon) async {
+  // Call 5 day / 3 hour forecast data
+  Future<List<ForecastDaysModel>> sendRequest5Days3HoursForecast(
+    double lat,
+    double lon,
+  ) async {
     try {
-      var response = await Dio().get(
+      final response = await Dio().get(
         'https://api.openweathermap.org/data/2.5/forecast',
         queryParameters: {
           'lat': lat,
@@ -506,24 +590,29 @@ class _MyAppState extends State<MyApp> {
           'appid': apikey,
           'units': 'metric',
           'lang': 'en',
-          'cnt': 6,
+          'cnt': 6, // optional, limits number of data points
         },
       );
-      final cityTimezone =
-          response.data['city']['timezone']; // <--- Add this line
 
-      List<ForecastDaysModel> forecastDays = [];
+      final cityTimezone = response.data['city']['timezone'] as int;
+
+      final List<ForecastDaysModel> forecastDays = [];
+
       for (var item in response.data['list']) {
-        var model = ForecastDaysModel.fromJson(item);
-        model.timezoneOffset =
-            cityTimezone; // <--- Save timezone for formatting
+        final model = ForecastDaysModel.fromJson(item);
+        model.timezoneOffset = cityTimezone;
         forecastDays.add(model);
       }
-      streamForecastDays.add(forecastDays);
+
+      // ✅ Return the list (do not stream here — handled by loadWeather)
+      return forecastDays;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching 3-hour forecast: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching 3-hour forecast: $e')),
+        );
+      }
+      throw Exception('Error fetching forecast');
     }
   }
 }
