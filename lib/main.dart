@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
@@ -6,6 +7,7 @@ import 'package:progress_indicators/progress_indicators.dart';
 import 'package:weatherapp/extension/unix_time_intl.dart';
 import 'package:weatherapp/model/city_name_model.dart';
 import 'package:weatherapp/model/current_city_data_model.dart';
+import 'package:weatherapp/model/forcast_day_model.dart';
 import 'package:weatherapp/theme/text_theme.dart';
 
 void main() {
@@ -23,7 +25,7 @@ class _MyAppState extends State<MyApp> {
   TextEditingController textEditingController = TextEditingController();
   late Future<CurrentCityDataModel> weatherFuture;
 
-  // late StreamController<List<ForecastDaysModel>> streamForecastDays;
+  late StreamController<List<ForecastDaysModel>> streamForecastDays;
   // late StreamController<CurrentCityDataModel> streamCurrentWeather;
 
   var apikey = 'd7d97df61b04b338395566181c25c0f7';
@@ -35,6 +37,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     weatherFuture = loadWeather(cityName);
+    streamForecastDays = StreamController<List<ForecastDaysModel>>();
   }
 
   @override
@@ -127,7 +130,7 @@ class _MyAppState extends State<MyApp> {
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 20.0),
-                            child: setIconForMain(cityDataModel)
+                            child: setIconForMain(cityDataModel),
                           ),
                           Padding(
                             padding: EdgeInsets.only(top: 20),
@@ -490,6 +493,37 @@ class _MyAppState extends State<MyApp> {
         SnackBar(content: Text('Error fetching current forecast: $e')),
       );
       throw Exception('City not found');
+    }
+  }
+
+  void sendRequest7DaysForecast(double lat, double lon) async {
+    try {
+      var response = await Dio().get(
+        'https://api.openweathermap.org/data/2.5/forecast',
+        queryParameters: {
+          'lat': lat,
+          'lon': lon,
+          'appid': apikey,
+          'units': 'metric',
+          'lang': 'en',
+          'cnt': 6,
+        },
+      );
+      final cityTimezone =
+          response.data['city']['timezone']; // <--- Add this line
+
+      List<ForecastDaysModel> forecastDays = [];
+      for (var item in response.data['list']) {
+        var model = ForecastDaysModel.fromJson(item);
+        model.timezoneOffset =
+            cityTimezone; // <--- Save timezone for formatting
+        forecastDays.add(model);
+      }
+      streamForecastDays.add(forecastDays);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching 3-hour forecast: $e')),
+      );
     }
   }
 }
