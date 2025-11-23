@@ -64,7 +64,7 @@ Add your screenshots inside a folder like:
 images/
 
 Then reference them in README:
-![Home Screen](weatherapp/images/weatherApp.png)
+![Home Screen](images/weatherApp.png)
 
 
 
