@@ -61,7 +61,7 @@ Run the app
 flutter run
 📸 Screenshots
 Add your screenshots inside a folder like:
-assets/screenshots/
+images/
 
 Then reference them in README:
 ![Home Screen](weatherapp/images/weatherApp.png)
