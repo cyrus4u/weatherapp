@@ -127,56 +127,74 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           padding: const EdgeInsets.all(8.0),
                           child: Row(
                             children: [
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  final cityName = searchController.text.trim();
+                              SizedBox(
+                                height: 55, // Set the height for BOTH widgets
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
+                                    );
+                                    final cityName = searchController.text
+                                        .trim();
 
-                                  if (cityName.isEmpty) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Enter a city name'),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  try {
-                                    final city = await sendRequestCityName(
-                                      cityName,
-                                    );
-                                    if (!mounted) return;
-                                    // Refresh current weather
-                                    await loadWeather(cityName);
-                                  } catch (e) {
-                                    if (!mounted) return;
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'City not found',
+                                    if (cityName.isEmpty) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Enter a city name'),
                                         ),
-                                      ),
-                                    );
-                                  }
-                                },
+                                      );
+                                      return;
+                                    }
 
-                              
-                                child: Text('find'),
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.white.withAlpha(70),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
+                                    try {
+                                      await loadWeather(cityName);
+                                    } catch (e) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text('City not found'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white.withAlpha(
+                                      70,
+                                    ), // MATCH TEXTFIELD
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        10,
+                                      ), // MATCH TEXTFIELD
                                     ),
-                                    hintText: 'Enter city name',
-                                    hintStyle: TextStyle(color: Colors.white),
+                                    minimumSize: const Size(
+                                      80,
+                                      55,
+                                    ), // MATCH HEIGHT
+                                  ),
+                                  child: const Text(
+                                    'Find',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: 10),
+
+                              Expanded(
+                                child: SizedBox(
+                                  height: 55, // SAME HEIGHT
+                                  child: TextField(
+                                    controller: searchController,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Colors.white.withAlpha(70),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      hintText: 'Enter city name',
+                                      hintStyle: TextStyle(color: Colors.white),
+                                    ),
                                   ),
                                 ),
                               ),
