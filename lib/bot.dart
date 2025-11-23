@@ -132,36 +132,43 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                   final messenger = ScaffoldMessenger.of(
                                     context,
                                   );
-                                  final cityName = searchController.text.trim();
+                                  
 
-                                  if (cityName.isEmpty) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Enter a city name'),
-                                      ),
-                                    );
-                                    return;
-                                  }
                                   try {
                                     final city = await sendRequestCityName(
-                                      cityName,
+                                      searchController.text,
                                     );
                                     if (!mounted) return;
-                                    // Refresh current weather
-                                    await loadWeather(cityName);
+
+                                    // Create a new forecast controller first
+                                    setState(() {
+                                      _streamForecast5Days3Hours.close();
+                                      _streamForecast5Days3Hours =
+                                          StreamController<
+                                            List<ForecastDaysModel>
+                                          >.broadcast();
+                                    });
+
+                                    // Fetch and add new data to the new controller
+                                    final forecast =
+                                        await sendRequest5Days3HoursForecast(
+                                          city.lat,
+                                          city.lon,
+                                        );
+                                    _streamForecast5Days3Hours.add(forecast);
+
+                                    // Fetch current weather and update
+                                    await loadWeather(searchController.text);
                                   } catch (e) {
                                     if (!mounted) return;
                                     messenger.showSnackBar(
                                       const SnackBar(
-                                        content: Text(
-                                          'City not found',
-                                        ),
+                                        content: Text('City not found'),
                                       ),
                                     );
                                   }
                                 },
 
-                              
                                 child: Text('find'),
                               ),
                               SizedBox(width: 10),
