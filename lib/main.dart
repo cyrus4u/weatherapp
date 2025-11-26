@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:progress_indicators/progress_indicators.dart';
 import 'package:weatherapp/extension/unix_time_intl.dart';
@@ -120,352 +121,437 @@ class _WeatherScreenState extends State<WeatherScreen> {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Center(
-                  child: SingleChildScrollView(
-                    child: Column(
+                  child: RefreshIndicator(
+                    color: Colors.white,
+                    backgroundColor: const Color.fromARGB(255, 47, 33, 243),
+                    onRefresh: () async {
+                      // Use the current city name in the TextField, or fallback to last loaded city
+                      final query = searchController.text.trim().isEmpty
+                          ? cityName
+                          : searchController.text.trim();
+
+                      await loadWeather(query);
+                    },
+                    child: Stack(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                height: 55, // Set the height for BOTH widgets
-                                child: ElevatedButton(
-                                  onPressed: () async {
-                                    final messenger = ScaffoldMessenger.of(
-                                      context,
-                                    );
-                                    final cityName = searchController.text
-                                        .trim();
+                        SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(
+                                context,
+                              ).size.height, // ensures scrollable area
+                            ),
+                            child: IntrinsicHeight(
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          height:
+                                              55, // Set the height for BOTH widgets
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              final messenger =
+                                                  ScaffoldMessenger.of(context);
+                                              final cityName = searchController
+                                                  .text
+                                                  .trim();
 
-                                    if (cityName.isEmpty) {
-                                      messenger.showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Enter a city name'),
+                                              if (cityName.isEmpty) {
+                                                messenger.showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Enter a city name',
+                                                    ),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+
+                                              try {
+                                                await loadWeather(cityName);
+                                              } catch (e) {
+                                                messenger.showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'City not found',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.white
+                                                  .withAlpha(
+                                                    70,
+                                                  ), // MATCH TEXTFIELD
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      10,
+                                                    ), // MATCH TEXTFIELD
+                                              ),
+                                              minimumSize: const Size(
+                                                80,
+                                                55,
+                                              ), // MATCH HEIGHT
+                                            ),
+                                            child: const Text(
+                                              'Find',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      );
-                                      return;
-                                    }
 
-                                    try {
-                                      await loadWeather(cityName);
-                                    } catch (e) {
-                                      messenger.showSnackBar(
-                                        const SnackBar(
-                                          content: Text('City not found'),
+                                        const SizedBox(width: 10),
+
+                                        Expanded(
+                                          child: SizedBox(
+                                            height: 55, // SAME HEIGHT
+                                            child: TextField(
+                                              controller: searchController,
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white
+                                                    .withAlpha(70),
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  borderSide: BorderSide.none,
+                                                ),
+                                                hintText: 'Enter city name',
+                                                hintStyle: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      );
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white.withAlpha(
-                                      70,
-                                    ), // MATCH TEXTFIELD
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        10,
-                                      ), // MATCH TEXTFIELD
-                                    ),
-                                    minimumSize: const Size(
-                                      80,
-                                      55,
-                                    ), // MATCH HEIGHT
-                                  ),
-                                  child: const Text(
-                                    'Find',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(width: 10),
-
-                              Expanded(
-                                child: SizedBox(
-                                  height: 55, // SAME HEIGHT
-                                  child: TextField(
-                                    controller: searchController,
-                                    decoration: InputDecoration(
-                                      filled: true,
-                                      fillColor: Colors.white.withAlpha(70),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      hintText: 'Enter city name',
-                                      hintStyle: TextStyle(color: Colors.white),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 50.0),
-                          child: Text(
-                            cityDataModel!.cityname,
-                            style: TextStyle(color: Colors.white, fontSize: 35),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 20.0),
-                          child: Text(
-                            cityDataModel.description,
-                            style: TextStyle(color: Colors.white, fontSize: 20),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 20.0),
-                          child: setIconForMain(cityDataModel),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(top: 20),
-                          child: Text(
-                            '${cityDataModel.temp.round()}°',
-                            style: TextStyle(fontSize: 60, color: Colors.white),
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  'Max',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  '${cityDataModel.temp_max.round()}°',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10.0,
-                              ),
-                              child: Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  'min',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  '${cityDataModel.temp_min.round()}°',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10.0),
-                          child: Container(
-                            color: Colors.grey,
-                            height: 1,
-                            width: double.infinity,
-                          ),
-                        ),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 80,
-                          child: Center(
-                            child: ScrollConfiguration(
-                              behavior: ScrollConfiguration.of(context)
-                                  .copyWith(
-                                    dragDevices: {
-                                      PointerDeviceKind.mouse,
-                                      PointerDeviceKind.touch,
-                                      PointerDeviceKind.trackpad,
-                                    },
-                                  ),
-                              child: StreamBuilder<List<ForecastDaysModel>>(
-                                stream: _streamForecast5Days3Hours.stream,
-                                builder: (context, snapshot) {
-                                  if (snapshot.hasData) {
-                                    List<ForecastDaysModel>? forcastDays =
-                                        snapshot.data;
-                                    return ListView.builder(
-                                      itemCount: 6,
-                                      shrinkWrap: true,
-                                      scrollDirection: Axis.horizontal,
-                                      itemBuilder: (context, index) {
-                                        return listViewItems(
-                                          forcastDays![index],
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    return Center(
-                                      child: JumpingDotsProgressIndicator(
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 50.0),
+                                    child: Text(
+                                      cityDataModel!.cityname,
+                                      style: TextStyle(
                                         color: Colors.white,
+                                        fontSize: 35,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 20.0),
+                                    child: Text(
+                                      cityDataModel.description,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 20.0),
+                                    child: setIconForMain(cityDataModel),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.only(top: 20),
+                                    child: Text(
+                                      '${cityDataModel.temp.round()}°',
+                                      style: TextStyle(
                                         fontSize: 60,
-                                        dotSpacing: 2,
+                                        color: Colors.white,
                                       ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10.0),
-                          child: Container(
-                            color: Colors.grey,
-                            height: 1,
-                            width: double.infinity,
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  'Wind Speed',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  '${cityDataModel.wind_speed} m/s',
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Column(
+                                        children: [
+                                          Text(
+                                            'Max',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            '${cityDataModel.temp_max.round()}°',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10.0,
+                                        ),
+                                        child: Container(
+                                          width: 1,
+                                          height: 40,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            'min',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            '${cityDataModel.temp_min.round()}°',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10.0,
+                                    ),
+                                    child: Container(
+                                      color: Colors.grey,
+                                      height: 1,
+                                      width: double.infinity,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 80,
+                                    child: Center(
+                                      child: ScrollConfiguration(
+                                        behavior:
+                                            ScrollConfiguration.of(
+                                              context,
+                                            ).copyWith(
+                                              dragDevices: {
+                                                PointerDeviceKind.mouse,
+                                                PointerDeviceKind.touch,
+                                                PointerDeviceKind.trackpad,
+                                              },
+                                            ),
+                                        child:
+                                            StreamBuilder<
+                                              List<ForecastDaysModel>
+                                            >(
+                                              stream: _streamForecast5Days3Hours
+                                                  .stream,
+                                              builder: (context, snapshot) {
+                                                if (snapshot.hasData) {
+                                                  List<ForecastDaysModel>?
+                                                  forcastDays = snapshot.data;
+                                                  return ListView.builder(
+                                                    itemCount: 6,
+                                                    shrinkWrap: true,
+                                                    scrollDirection:
+                                                        Axis.horizontal,
+                                                    itemBuilder:
+                                                        (context, index) {
+                                                          return listViewItems(
+                                                            forcastDays![index],
+                                                          );
+                                                        },
+                                                  );
+                                                } else {
+                                                  return Center(
+                                                    child:
+                                                        JumpingDotsProgressIndicator(
+                                                          color: Colors.white,
+                                                          fontSize: 60,
+                                                          dotSpacing: 2,
+                                                        ),
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10.0,
+                                    ),
+                                    child: Container(
+                                      color: Colors.grey,
+                                      height: 1,
+                                      width: double.infinity,
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Column(
+                                        children: [
+                                          Text(
+                                            'Wind Speed',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            '${cityDataModel.wind_speed} m/s',
 
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(
-                                        color: Colors.white,
-                                        fontSize: 14,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                ),
+                                          ),
+                                        ],
                                       ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5.0,
-                              ),
-                              child: Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  'Sunrise',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  cityDataModel.sunrise.toFormattedTime(
-                                    cityDataModel.timezone,
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5.0,
+                                        ),
+                                        child: Container(
+                                          width: 1,
+                                          height: 40,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            'Sunrise',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            cityDataModel.sunrise
+                                                .toFormattedTime(
+                                                  cityDataModel.timezone,
+                                                ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5.0,
+                                        ),
+                                        child: Container(
+                                          width: 1,
+                                          height: 40,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            'Sunset',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            cityDataModel.sunset
+                                                .toFormattedTime(
+                                                  cityDataModel.timezone,
+                                                ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5.0,
+                                        ),
+                                        child: Container(
+                                          width: 1,
+                                          height: 40,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            'Humidity',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(color: Colors.white),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            '${cityDataModel.humidity} %',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium!
+                                                .copyWith(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5.0,
-                              ),
-                              child: Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.white,
+                                ],
                               ),
                             ),
-                            Column(
-                              children: [
-                                Text(
-                                  'Sunset',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  cityDataModel.sunset.toFormattedTime(
-                                    cityDataModel.timezone,
-                                  ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5.0,
-                              ),
-                              child: Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  'Humidity',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  '${cityDataModel.humidity} %',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium!
-                                      .copyWith(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
+                        if (kIsWeb)
+                          Positioned(
+                            right: 16,
+                            top: 16,
+                            child: FloatingActionButton(
+                              mini: true,
+                              backgroundColor: Colors.white.withOpacity(0.7),
+                              onPressed: () async {
+                                // Use the current city name in the TextField, or fallback to last loaded city
+                                final query =
+                                    searchController.text.trim().isEmpty
+                                    ? cityName
+                                    : searchController.text.trim();
+
+                                await loadWeather(query);
+                              },
+                              child: const Icon(
+                                Icons.refresh,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
