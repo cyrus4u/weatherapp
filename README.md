@@ -37,68 +37,70 @@ dependencies:
   dio: ^5.9.0
   progress_indicators: ^1.0.0
   intl: ^0.20.2
-▶️ How to Run
-
-Clone the repository
-
-git clone https://github.com/cyrus4u/<your-repo-name>.git
-
-
-
-Install dependencies
-
-flutter pub get
-
-
-Add your API key
-Create a file named api_key.dart and insert:
-
-const String apiKey = "YOUR_API_KEY_HERE";
-
-
-Run the app
-
-flutter run
-📸 Screenshots
-Add your screenshots inside a folder like:
-assets/screenshots/
-
-Then reference them in README:
-![Home Screen](assets/screenshots/home.png)
-![Forecast Screen](assets/screenshots/forecast.png)
-
-
-🔮 Future Improvements
-
-
-Add state management (Bloc / Provider / Riverpod)
-
-
-Better UI animations
-
-
-Weekly forecast
-
-
-Favorite cities
-
-
-Air quality index
-
-
-Dark Mode
-
-
-
-👤 Author
-GitHub: cyrus4u
+```
 
 ---
 
-If you want, I can also:  
+## ▶️ How to Run
+
+Clone the repository:
+
+```sh
+git clone https://github.com/cyrus4u/<your-repo-name>.git
+```
+
+Install dependencies:
+
+```sh
+flutter pub get
+```
+
+Add your API key:  
+Create a file named `api_key.dart` and insert:
+```dart
+const String apiKey = "YOUR_API_KEY_HERE";
+```
+
+Run the app:
+
+```sh
+flutter run
+```
+
+---
+
+## 📸 Screenshots
+
+Add your screenshots inside a folder like:  
+`images/`
+
+Then reference them in README:
+
+## 📸 Screenshots
+
+![Home Screen](images/weatherApp.png)
+
+---
+
+## 🔮 Future Improvements
+
+- Add state management (Bloc / Provider / Riverpod)
+- Better UI animations
+- Weekly forecast
+- Favorite cities
+- Air quality index
+- Dark Mode
+
+---
+
+👤 Author
+
+GitHub: [cyrus4u](https://github.com/cyrus4u)
+
+---
+
+*If you want, I can also:*  
 ✅ generate badges (Flutter version, license, stars, forks)  
 ✅ design an improved description  
 ✅ help you create the API key file structure  
 Just tell me!
-
-
